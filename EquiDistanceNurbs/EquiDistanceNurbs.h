@@ -39,14 +39,16 @@ private:
 	const double step = 0.01;
 
 	//原始nurbs曲线的控制点
-	QVector<structPoint>          nurbsCtrlPoints;
-
+	QVector<structPoint>			nurbsCtrlPoints;
+	//原始nurbs曲线上的点
+	QVector<QPointF>			    originNurbsBodyPts;
 
 private:
 	bool isShowCtrlPoints; //是否显示控制点
 	bool isShowCtrlPtsConnectedLine; //是否显示控制点之间的直连线
 
 private:
+	void GenerateNURBSCurve();
 	double N3Spline(int i, double u);
 
 };
