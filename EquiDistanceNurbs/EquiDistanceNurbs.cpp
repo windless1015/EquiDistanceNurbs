@@ -23,7 +23,7 @@ void EquiDistanceNurbs::mousePressEvent(QMouseEvent* event)
 {
 	if (event->button() == Qt::LeftButton)
 	{
-		structPoint oneCtrlPt;
+		NurbsCtrlPoint oneCtrlPt;
 		oneCtrlPt.point = event->pos();;
 		oneCtrlPt.weight = 1.0;
 		nurbsCtrlPoints.push_back(oneCtrlPt);
@@ -76,7 +76,7 @@ void EquiDistanceNurbs::paintEvent(QPaintEvent *event)
 	for (int i = 0; i < originNurbsBodyPts.size() - 1; i++) //遍历body pts是从idx为[0, i-2]
 	{
 		//绘制每一小段的直线,当body pts足够多的时候就是曲线
-		painter.drawLine(originNurbsBodyPts[i], originNurbsBodyPts[i + 1]);
+		painter.drawLine(originNurbsBodyPts[i].point, originNurbsBodyPts[i + 1].point);
 	}
 
 }
@@ -105,16 +105,17 @@ void EquiDistanceNurbs::GenerateNURBSCurve()
 	//int count = 0;
 	for (double u = 1; u < nurbsCtrlPoints.size() + 2; u += step)
 	{
-		QPointF pt(0, 0);
+		NurbsBodyPoint bodyPt;
 		double factor = 0;
 		double N;
 		for (int i = 0; i < nurbsCtrlPoints.size(); i++)
 		{
 			N = N3Spline(i, u);
-			pt += nurbsCtrlPoints[i].point * N;
+			bodyPt.point += nurbsCtrlPoints[i].point * N;
 			factor += N;
 		}
-		originNurbsBodyPts.push_back(pt / factor);
+		bodyPt.point /= factor;
+		originNurbsBodyPts.push_back(bodyPt);
 		//count++;
 	}
 	//qDebug() << "count : " << count << endl;

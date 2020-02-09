@@ -12,7 +12,16 @@ typedef struct WeightPoint
 {
 	QPointF point;
 	double weight;
-} structPoint;
+} NurbsCtrlPoint;
+
+typedef struct BodyPoint
+{
+	QPointF point; //点的坐标
+	QPointF firstDerivative; //一阶导数, x表示x方向的一阶导数, y表示y方向的一阶导数
+	QPointF secondDerivative; //二阶导数,x表示x方向的二阶导数, y表示y方向的二阶导数
+	QPointF unitNormVector; //单位法向量
+	double curvatureRadius; //曲率半径
+} NurbsBodyPoint;
 
 
 class EquiDistanceNurbs : public QMainWindow
@@ -39,9 +48,9 @@ private:
 	const double step = 0.01;
 
 	//原始nurbs曲线的控制点
-	QVector<structPoint>			nurbsCtrlPoints;
+	QVector<NurbsCtrlPoint>			nurbsCtrlPoints;
 	//原始nurbs曲线上的点
-	QVector<QPointF>			    originNurbsBodyPts;
+	QVector<NurbsBodyPoint>		originNurbsBodyPts;
 
 private:
 	bool isShowCtrlPoints; //是否显示控制点
