@@ -4,7 +4,7 @@
 #include "ui_EquiDistanceNurbs.h"
 #include <qvector.h>
 
-//最大值, 最小值
+//定义最小值,最大值
 const double DMAX = 1.e12;
 const double DMIN = 1.e-12;
 
@@ -35,6 +35,11 @@ public:
 
 public slots:
 	void OnBtnEquidistance();
+	void OnBtnDisplayTangent();
+	void OnBtnDisplayNorm();
+	void OnBtnDisplayCurvature();
+	void OnDisplayCurvature();
+
 
 protected:
 	void mousePressEvent(QMouseEvent* event);
@@ -45,7 +50,7 @@ private:
 	//三阶 样条
 	const int DEGREE = 3;
 	//点之间的步长距离
-	const double step = 0.01;
+	const double step = 0.1;
 
 	//原始nurbs曲线的控制点
 	QVector<NurbsCtrlPoint>			nurbsCtrlPoints;
@@ -55,9 +60,15 @@ private:
 private:
 	bool isShowCtrlPoints; //是否显示控制点
 	bool isShowCtrlPtsConnectedLine; //是否显示控制点之间的直连线
+	bool isShowBodyPtsTangent; //是否显示曲线点的切向量
+	bool isShowBodyPtsNorm; //是否显示曲线点的法向量
+	bool isShowCurvatureRadius; //是否显示某一个点的曲率半径
 
 private:
 	void GenerateNURBSCurve();
 	double N3Spline(int i, double u);
-
+	//计算一阶导数和法向量
+	void CalFirstDerivativeAndNorm(QVector<NurbsBodyPoint>&);
+	//计算二阶导数和曲率半径
+	void CalSecondDerivativeAndCurvRad(QVector<NurbsBodyPoint>&);
 };

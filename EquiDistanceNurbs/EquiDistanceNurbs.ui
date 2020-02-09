@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1055</width>
-    <height>657</height>
+    <width>1172</width>
+    <height>820</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,7 +17,7 @@
    <widget class="QPushButton" name="btnOffsetCurve">
     <property name="geometry">
      <rect>
-      <x>20</x>
+      <x>450</x>
       <y>20</y>
       <width>93</width>
       <height>28</height>
@@ -27,13 +27,81 @@
      <string>显示等距线</string>
     </property>
    </widget>
+   <widget class="QPushButton" name="btnDisplayNorm">
+    <property name="geometry">
+     <rect>
+      <x>340</x>
+      <y>20</y>
+      <width>93</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>显示法向</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="btnDisplayTan">
+    <property name="geometry">
+     <rect>
+      <x>230</x>
+      <y>20</y>
+      <width>93</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>显示切向</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="btnDisplayCurvatureRad">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>20</y>
+      <width>171</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>显示点的曲率半径</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="lineEdit_idx">
+    <property name="geometry">
+     <rect>
+      <x>100</x>
+      <y>60</y>
+      <width>71</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>0</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
+    </property>
+   </widget>
+   <widget class="QLabel" name="lab_idx">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>60</y>
+      <width>91</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>点的序列号:</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1055</width>
+     <width>1172</width>
      <height>26</height>
     </rect>
    </property>
