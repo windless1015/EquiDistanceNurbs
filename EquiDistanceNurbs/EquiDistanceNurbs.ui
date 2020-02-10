@@ -14,17 +14,17 @@
    <string>EquiDistanceNurbs</string>
   </property>
   <widget class="QWidget" name="centralWidget">
-   <widget class="QPushButton" name="btnOffsetCurve">
+   <widget class="QPushButton" name="btnShowOriginEquiLines">
     <property name="geometry">
      <rect>
       <x>450</x>
       <y>20</y>
-      <width>93</width>
+      <width>121</width>
       <height>28</height>
      </rect>
     </property>
     <property name="text">
-     <string>显示等距线</string>
+     <string>显示原始等距线</string>
     </property>
    </widget>
    <widget class="QPushButton" name="btnDisplayNorm">
