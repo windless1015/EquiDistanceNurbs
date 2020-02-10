@@ -66,10 +66,8 @@ void EquiDistanceNurbs::OnBtnDisplayNorm()
 
 void EquiDistanceNurbs::OnBtnRawEquidistance()
 {
-
-	isShowRawEquiDistance = !isShowRawEquiDistance;
 	CalOffsetCurve(originNurbsBodyPts, 40);
-
+	isShowRawEquiDistance = !isShowRawEquiDistance;
 	update();
 }
 
@@ -182,26 +180,20 @@ void EquiDistanceNurbs::paintEvent(QPaintEvent *event)
 	}
 
 	//根据原始的nurb曲线显示raw等距线(有自交,未经修饰过的)
-	if (isShowRawEquiDistance)
+	if (isShowRawEquiDistance && rawOffsetNurbsBodyPts.size() > 0)
 	{
 		QPen rawEquiPen(QColor(1, 0, 0));
 		rawEquiPen.setWidth(1);
 		painter.setPen(QColor(Qt::blue));
 		QPointF rawEquiNurbPt_prev;
 		QPointF rawEquiNurbPt_follw;
-		int vecSize = originNurbsBodyPts.size();
+		int vecSize = rawOffsetNurbsBodyPts.size(); //偏移曲线的数量
 		for (int i = 0; i < vecSize - 2; i++)
 		{
-			rawEquiNurbPt_prev = originNurbsBodyPts[i].unitNormVector * 40 + originNurbsBodyPts[i].point;
-			rawEquiNurbPt_follw = originNurbsBodyPts[i+1].unitNormVector * 40 + originNurbsBodyPts[i+1].point;
-			//绘制每一小段的直线,当body pts足够多的时候就是曲线
+			rawEquiNurbPt_prev = rawOffsetNurbsBodyPts.at(i).point;
+			rawEquiNurbPt_follw = rawOffsetNurbsBodyPts.at(i+1).point;
 			painter.drawLine(rawEquiNurbPt_prev, rawEquiNurbPt_follw);
 		}
-		//再绘制最后一段
-		rawEquiNurbPt_prev = rawEquiNurbPt_follw;
-		rawEquiNurbPt_follw = originNurbsBodyPts[vecSize - 1].unitNormVector * 40 + originNurbsBodyPts[vecSize - 1].point;
-		painter.drawLine(rawEquiNurbPt_prev, rawEquiNurbPt_follw);
-	
 	}
 
 	//临时显示
@@ -354,6 +346,17 @@ void EquiDistanceNurbs::FindPtsCurvRadLowerThanOffset(const QVector<NurbsBodyPoi
 
 void EquiDistanceNurbs::CalOffsetCurve(const QVector<NurbsBodyPoint>&bodyPtsVector, int offset)
 {
+
+	//先计算原始的nurbs偏移曲线
+	rawOffsetNurbsBodyPts.clear();
+	NurbsBodyPoint offsetNurbsBodyPt;
+	for (int i=0; i < bodyPtsVector.size(); i++)
+	{
+		offsetNurbsBodyPt.point = originNurbsBodyPts[i].unitNormVector * 40 + originNurbsBodyPts[i].point;
+		offsetNurbsBodyPt.unitNormVector = originNurbsBodyPts[i].unitNormVector * -1;//反向
+		rawOffsetNurbsBodyPts.push_back(offsetNurbsBodyPt);
+	}
+
 	//1.获取nurbs曲线上小于曲率半径的首末端点
     QVector<int> startEndPtLowerCurvRad;       
 	FindPtsCurvRadLowerThanOffset(bodyPtsVector, offset, startEndPtLowerCurvRad);
@@ -373,8 +376,10 @@ void EquiDistanceNurbs::CalOffsetCurve(const QVector<NurbsBodyPoint>&bodyPtsVect
 				comparedIdx = curIdx;
 			}
 		}
+
 	}
-	//3. 将purifyEndPts中不产生自交的点删除,剩下的是自交的点
+	//3. 将purifyEndPts中不产生自交的点删除,剩下的是自交三角形的两个腰角的顶点
+	//原理: 根据凸包性判断, 有一些曲率半径比offset小,但是因为是某种凹凸性(可能是凸,也可能是凹),这些点不会产生自交
 	double con;
 	QVector<int> needCutEndPts;  //需要裁剪的首末端点
 	for (int i = 0; i < purifyEndPts.size(); i++)
@@ -390,11 +395,14 @@ void EquiDistanceNurbs::CalOffsetCurve(const QVector<NurbsBodyPoint>&bodyPtsVect
 		}
 	}
 
+	//4.寻找自交点
+	QVector<int> selfCrossPts; //自交点的idx, 每两个为一对, 分别为大小索引
+	CalSlefCrossPoint(rawOffsetNurbsBodyPts, needCutEndPts, selfCrossPts);
 
 	//显示其偏移点
-	for (int i = 0; i < needCutEndPts.size(); i++)
+	for (int i = 0; i < selfCrossPts.size(); i++)
 	{
-		locationVec.push_back(bodyPtsVector.at(needCutEndPts.at(i)));
+		locationVec.push_back(bodyPtsVector.at(selfCrossPts.at(i)));
 	}
 
 }
@@ -417,4 +425,49 @@ double EquiDistanceNurbs::CalConvexHull(const QVector<NurbsBodyPoint>&bodyPtsVec
 	if ((fabs(denom1) > 1e-5) && (fabs(denom2) > 1e-5))
 		result = (p1.x() - p0.x())*(p2.y() - p1.y()) - denom1 * denom2;  //论文 式6的行列式,判断正负用
 	return result;
+}
+
+/*
+1.先说作者的方法,作者的方法是找到自交倒三角形的腰点,然后回溯. 使用了三重循环.计算两个点之间距离,设定阈值判断自交点
+*/
+void EquiDistanceNurbs::CalSlefCrossPoint(const QVector<NurbsBodyPoint>&offsetCurvBodyPts, QVector<int>& needCutEndPts,
+	QVector<int>&selfCrossPtVector)
+{
+	//向只包含腰点坐标数组插入两个idx, 一个是0, 一个是rawOffsetNurbsBodyPts的数组长度
+	//因为这样可以知道前后的边界处
+	needCutEndPts.push_front(0);
+	needCutEndPts.push_back(offsetCurvBodyPts.size());
+
+	//staEndPtIdx表示从这一组腰点中开始遍历, 并且从1开始遍历,因为第一个数据为0(起始边界)
+	//并且,遍历的时候需要跨越一组(两个)点, 后续可以优化成一个数据结构
+	//遍历到needCutEndPts.size() - 1 最后一个数据是结束边界, 不需要遍历
+	double deltaX, deltaY, distance;
+	for (int k = 1; k < needCutEndPts.size() - 1; k += 2) 
+	{
+		bool isFindCrossPt = false; //是否找到自交点标记位
+		//最多减少到前一组数据的下边界(因为不会跨越上一个idx较大的腰点) 和 1/step(100次)
+		for (int j = 0, lowerPtIdx = needCutEndPts[k];
+			needCutEndPts[k - 1] < lowerPtIdx && j < 1 / step; j++, lowerPtIdx--)
+		{
+			for (int i = 0, greaterPtIdx = needCutEndPts[k + 1];
+				greaterPtIdx < needCutEndPts[k + 2] && i < 1 / step; i++, greaterPtIdx++) //同样不会超越下一组数据的上边界
+			{
+				deltaX = offsetCurvBodyPts[greaterPtIdx].point.x() - offsetCurvBodyPts[lowerPtIdx].point.x();
+				deltaY = offsetCurvBodyPts[greaterPtIdx].point.y() - offsetCurvBodyPts[lowerPtIdx].point.y();
+				distance = sqrt(deltaX * deltaX + deltaY * deltaY);
+				if (distance < 0.7)//距离阈值
+				{
+					selfCrossPtVector.push_back(lowerPtIdx); //把自交点的两个坐标记录,一个是idx较小的, 一个是较大的,两个点相距非常近,可以认为是一个点
+					selfCrossPtVector.push_back(greaterPtIdx);
+					isFindCrossPt = true; //找到自交点
+					break; //这个是跳出最内层循环
+				}
+				if (isFindCrossPt) //如果找到一个自交点,那么就要跳出这一次寻找, 寻找下一组点, for循环回到最外层的遍历
+				{
+					break;
+				}
+			}
+		}
+	}
+	
 }

@@ -55,6 +55,10 @@ private:
 	QVector<NurbsCtrlPoint>			nurbsCtrlPoints;
 	//原始nurbs曲线上的点
 	QVector<NurbsBodyPoint>		originNurbsBodyPts;
+
+	//原始偏移 nurbs曲线
+	QVector<NurbsBodyPoint>		rawOffsetNurbsBodyPts;
+
 	QVector<NurbsBodyPoint> locationVec;
 
 private:
@@ -82,4 +86,6 @@ private:
 	void FindPtsCurvRadLowerThanOffset(const QVector<NurbsBodyPoint>&, const int&, QVector<int>&);
 	//计算凸包
 	double CalConvexHull(const QVector<NurbsBodyPoint>&, const int&);
+	//计算自交点
+	void CalSlefCrossPoint(const QVector<NurbsBodyPoint>&, QVector<int>&, QVector<int>&);
 };
