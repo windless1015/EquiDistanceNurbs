@@ -24,7 +24,7 @@ EquiDistanceNurbs::EquiDistanceNurbs(QWidget *parent)
 	connect(ui.btnDisplayCurvatureRad, &QPushButton::clicked, this, &EquiDistanceNurbs::OnBtnDisplayCurvature);
 	connect(ui.lineEdit_idx, &QLineEdit::returnPressed, this, &EquiDistanceNurbs::OnDisplayCurvature);
 
-	NurbsCtrlPoint p1;
+	/*NurbsCtrlPoint p1;
 	p1.point = QPointF(243, 676);
 	p1.weight = 1.0;
 	nurbsCtrlPoints.push_back(p1);
@@ -35,7 +35,7 @@ EquiDistanceNurbs::EquiDistanceNurbs(QWidget *parent)
 	p1.point = QPointF(446, 290);
 	nurbsCtrlPoints.push_back(p1);
 	p1.point = QPointF(450, 695);
-	nurbsCtrlPoints.push_back(p1);
+	nurbsCtrlPoints.push_back(p1);*/
 }
 
 void EquiDistanceNurbs::OnBtnDisplayCurvature()
@@ -78,7 +78,7 @@ void EquiDistanceNurbs::mousePressEvent(QMouseEvent* event)
 		NurbsCtrlPoint oneCtrlPt;
 		oneCtrlPt.point = event->pos();;
 		oneCtrlPt.weight = 1.0;
-		//nurbsCtrlPoints.push_back(oneCtrlPt);
+		nurbsCtrlPoints.push_back(oneCtrlPt);
 		GenerateNURBSCurve();
 		CalFirstDerivativeAndNorm(originNurbsBodyPts);
 		CalSecondDerivativeAndCurvRad(originNurbsBodyPts);
@@ -187,17 +187,25 @@ void EquiDistanceNurbs::paintEvent(QPaintEvent *event)
 		painter.setPen(QColor(Qt::blue));
 		QPointF rawEquiNurbPt_prev;
 		QPointF rawEquiNurbPt_follw;
-		int vecSize = rawOffsetNurbsBodyPts.size(); //偏移曲线的数量
-		for (int i = 0; i < vecSize - 2; i++)
+		int vecSize = locationVec.size(); //偏移曲线的数量
+		/*for (int i = 0; i < vecSize - 2; i++)
 		{
 			rawEquiNurbPt_prev = rawOffsetNurbsBodyPts.at(i).point;
 			rawEquiNurbPt_follw = rawOffsetNurbsBodyPts.at(i+1).point;
 			painter.drawLine(rawEquiNurbPt_prev, rawEquiNurbPt_follw);
+		}*/
+		for (int i = 0; i < vecSize - 1; i++)
+		{
+			rawEquiNurbPt_prev = locationVec.at(i).point;
+			rawEquiNurbPt_follw = locationVec.at(i+1).point;
+			painter.drawLine(rawEquiNurbPt_prev, rawEquiNurbPt_follw);
 		}
+
 	}
 
 	//临时显示
 	{
+		return;
 		QPen ctrlPtsPen(QColor(0, 0, 255));
 		ctrlPtsPen.setWidth(5);
 		painter.setPen(ctrlPtsPen);
@@ -206,9 +214,9 @@ void EquiDistanceNurbs::paintEvent(QPaintEvent *event)
 		painter.setBrush(brush);//设置画刷
 		for (int i = 0; i < locationVec.size(); i++)
 		{
-			QPointF tmpPt = locationVec[i].point;
-			tmpPt = tmpPt + locationVec[i].unitNormVector * 40;
-			painter.drawPoint(tmpPt.x(), tmpPt.y());
+			//QPointF tmpPt = locationVec[i].point;
+			//tmpPt = tmpPt + locationVec[i].unitNormVector * 40;
+			//painter.drawPoint(tmpPt.x(), tmpPt.y());
 		}
 	}
 }
@@ -397,12 +405,17 @@ void EquiDistanceNurbs::CalOffsetCurve(const QVector<NurbsBodyPoint>&bodyPtsVect
 
 	//4.寻找自交点
 	QVector<int> selfCrossPts; //自交点的idx, 每两个为一对, 分别为大小索引
-	CalSlefCrossPoint(rawOffsetNurbsBodyPts, needCutEndPts, selfCrossPts);
+	CalSelfCrossPoint(rawOffsetNurbsBodyPts, needCutEndPts, selfCrossPts);
+	QMap<int, QVector<QPointF>> connectCurves;
+	ConstructConnectCurve(rawOffsetNurbsBodyPts, selfCrossPts, connectCurves);
+	//5.创建新的经过光顺的偏置曲线
+	QVector<NurbsBodyPoint> finalOffsetCurve;
+	ConstructCurvesSnippets(connectCurves, selfCrossPts, rawOffsetNurbsBodyPts, finalOffsetCurve);
 
 	//显示其偏移点
-	for (int i = 0; i < selfCrossPts.size(); i++)
+	for (int i = 0; i < finalOffsetCurve.size(); i++)
 	{
-		locationVec.push_back(bodyPtsVector.at(selfCrossPts.at(i)));
+		locationVec.push_back(finalOffsetCurve.at(i));
 	}
 
 }
@@ -430,7 +443,7 @@ double EquiDistanceNurbs::CalConvexHull(const QVector<NurbsBodyPoint>&bodyPtsVec
 /*
 1.先说作者的方法,作者的方法是找到自交倒三角形的腰点,然后回溯. 使用了三重循环.计算两个点之间距离,设定阈值判断自交点
 */
-void EquiDistanceNurbs::CalSlefCrossPoint(const QVector<NurbsBodyPoint>&offsetCurvBodyPts, QVector<int>& needCutEndPts,
+void EquiDistanceNurbs::CalSelfCrossPoint(const QVector<NurbsBodyPoint>&offsetCurvBodyPts, QVector<int>& needCutEndPts,
 	QVector<int>&selfCrossPtVector)
 {
 	//向只包含腰点坐标数组插入两个idx, 一个是0, 一个是rawOffsetNurbsBodyPts的数组长度
@@ -470,4 +483,115 @@ void EquiDistanceNurbs::CalSlefCrossPoint(const QVector<NurbsBodyPoint>&offsetCu
 		}
 	}
 	
+}
+
+//rawOffsetPts 表示原始的偏置曲线, 
+//crossPts表示相交点的id 值 数组, 一般为偶数
+void EquiDistanceNurbs::ConstructConnectCurve(const QVector<NurbsBodyPoint>& rawOffsetPts, 
+	QVector<int>&selfCrossPts, QMap<int, QVector<QPointF>>&connectCurves)
+{
+	if (selfCrossPts.size() <= 0)
+		return;
+	int deltaBackup = 20;  //后退的步数
+	int deltaForward = 20; //向前的步数
+	selfCrossPts.push_front(0);
+	selfCrossPts.push_back(rawOffsetPts.size());
+	//本质就是用一段贝塞尔曲线来做拟合, 这一段曲线能和原曲线连续,1阶,2阶可导. 本质就是先找6个控制点.
+	//分别为p0, p1, p2, p3, p4, p5.   其中 p0, p5是连接光顺曲线和原来nurbs曲线的连接点, 其他几个点的求法
+	//在论文中均有描述,
+	double selfDefRatio = 0.06;       //自定义系数
+	int mapCount = 0;
+	QPointF p0, p1, p2, p3, p4, p5;  //光顺连接曲线的6个控制点
+	//下面带_v的表示向量,不是一个点
+	QPointF k_p1_v; //p1点的斜率 (p0 和p1是通过y = kx +b 形式连接,)
+	QPointF k_p4_v; //p4点的斜率(p4 和p5是通过y = -kx +b 形式连接,)
+	QPointF prevConnPtDeriv_1order_v; //连接点前一个(idx较小的)点的1阶导数
+	QPointF connPtDeriv_1order_v; // 连接点的一阶导数
+	QPointF followConnPtDeriv_1order_v; //连接点后一个(idx较大)点的一阶导数
+	QPointF connPtDeriv_2order_v;//中间点的二阶导数
+	//第一个数据是0, 后面每两个是一对, 最后一个是偏移曲线的长度.  例子: 0    (131, 323)    (266,472)     601
+	for (int i=0; i< selfCrossPts.size() - 2; i += 2)
+	{
+		//创建当前 连接的光顺曲线段 
+		QVector<QPointF> curConnectCurvePts;
+		//真正的nurb曲线和构造光顺曲线段相互连接点
+		int realConnPt1 = selfCrossPts[i + 1] - deltaBackup;  //真正的连接点是,把自交点往idx较小方向偏移了一段距离
+		int realConnPt2 = selfCrossPts[i + 2] + deltaForward; //向 idx增大方向延伸一段
+		selfCrossPts[i + 1] = realConnPt1;   //修改真正的接触点的数据
+		selfCrossPts[i + 2] = realConnPt2;
+		if (realConnPt1 < 2)// 超过边界点就用边界点来代替(至少保证前面有2点偏移,为了求导数用)
+			realConnPt1 = 2;
+		if (realConnPt2 > rawOffsetPts.size() - 3)// 超过边界点就用边界点来代替(至少保证后面有2个点)
+			realConnPt2 = rawOffsetPts.size() - 3;
+		//此时找到了真正的连接点p0和p5
+		p0 = rawOffsetPts[realConnPt1].point;
+		p5 = rawOffsetPts[realConnPt2].point;
+
+		//下面寻找p1和p2, 这两个点和p0与p5相临近,先计算相关点的导数
+		prevConnPtDeriv_1order_v = (p0 - rawOffsetPts[realConnPt1 - 2].point) / (2*step); //连接点前一个点的一阶导数
+		connPtDeriv_1order_v = (rawOffsetPts[realConnPt1 +1].point - rawOffsetPts[realConnPt1 - 1].point) / (2 * step);//连接点一阶导
+		followConnPtDeriv_1order_v = (rawOffsetPts[realConnPt1 + 2].point - p0) / (2 * step); //连接点前一个点的一阶导数
+		connPtDeriv_2order_v = (followConnPtDeriv_1order_v - prevConnPtDeriv_1order_v) / (2 * step); //中间点二阶导
+		//计算p1
+		k_p1_v = connPtDeriv_1order_v; //p1点是通过p0点由 y = kx +b找到的
+		p1 = k_p1_v * selfDefRatio + p0; //这里selfDefRatio 相当于自变量x, 这里设定的是0.06
+		//计算p2, //公式在文章1.4 的(4) 有公式
+		//bP2.ry() = derivate2_1y * ratio_b*ratio_b / 20 + 2 * bP1.y() - bP0.y();
+		p2 = connPtDeriv_2order_v * selfDefRatio * selfDefRatio / 20 + 2 * p1 - p0;
+		//下面求p4和p3
+		prevConnPtDeriv_1order_v = (p0 - rawOffsetPts[realConnPt2 - 2].point) / (2 * step); //连接点前一个点的一阶导数
+		connPtDeriv_1order_v = (rawOffsetPts[realConnPt2 + 1].point - rawOffsetPts[realConnPt2 - 1].point) / (2 * step);//连接点一阶导
+		followConnPtDeriv_1order_v = (rawOffsetPts[realConnPt2 + 2].point - p0) / (2 * step); //连接点前一个点的一阶导数
+		connPtDeriv_2order_v = (followConnPtDeriv_1order_v - prevConnPtDeriv_1order_v) / (2 * step); //中间点二阶导
+		//计算p4
+		k_p4_v = connPtDeriv_1order_v;
+		p4 = -k_p4_v * selfDefRatio + p5; //这里是p5 - k *x;
+		//计算p3
+		p3 = connPtDeriv_2order_v * selfDefRatio * selfDefRatio / 20 + 2 * p4 - p5;
+		//构建6阶贝塞尔曲线
+		QPointF bezierCurvePt;
+		for (double t = 0; t <= 1; t += 0.01)
+		{
+			bezierCurvePt = pow(1 - t, 5)*p0 + 5 * t*pow(1 - t, 4)*p1 + 10 * pow(t, 2)*pow(1 - t, 3)*p2
+				+ 10 * pow(t, 3)*pow(1 - t, 2)*p3 + 5 * pow(t, 4)*(1 - t)*p4 + pow(t, 5)*p5;
+			curConnectCurvePts.push_back(bezierCurvePt);
+		}
+		connectCurves.insert(mapCount, curConnectCurvePts);
+		mapCount++;
+	}
+
+
+}
+
+void EquiDistanceNurbs::ConstructCurvesSnippets(const QMap<int, QVector<QPointF>>&connectCurves, 
+	const QVector<int>&selfCrossPts,const  QVector<NurbsBodyPoint>&rawOffsetPts,
+	QVector<NurbsBodyPoint>& outPutOffsetPts)
+{
+	if (selfCrossPts.size() <= 0)
+		return;
+	//拼接所有曲线段
+	//selfCrossPts 存储的是端点 和  真正接触点
+	NurbsBodyPoint nbPt;
+	int i = 0;
+	for (; i < selfCrossPts.size() - 2; i += 2) //
+	{
+		for (int snippetIdx = selfCrossPts.at(i); snippetIdx < selfCrossPts.at(i + 1); snippetIdx++)
+		{
+			nbPt = rawOffsetPts.at(snippetIdx);
+			outPutOffsetPts.push_back(nbPt);
+		}
+		//然后把构造的曲线找出来拼接
+		for (int conCurvIdx = 0; conCurvIdx < connectCurves[i / 2].size(); conCurvIdx++)
+		{
+			nbPt.point = connectCurves[i / 2].at(conCurvIdx);
+			outPutOffsetPts.push_back(nbPt);
+		}
+	}
+	//这时候i已经自增到导数第二个数据的idx
+	//最后一段
+	for (int count = selfCrossPts.at(i); count < selfCrossPts.at(i+1); count++)
+	{
+		nbPt = rawOffsetPts.at(count);
+		outPutOffsetPts.push_back(nbPt);
+	}
 }

@@ -3,6 +3,7 @@
 #include <QtWidgets/QMainWindow>
 #include "ui_EquiDistanceNurbs.h"
 #include <qvector.h>
+#include <qmap.h>
 
 //定义最小值,最大值
 const double DMAX = 1.e12;
@@ -60,6 +61,7 @@ private:
 	QVector<NurbsBodyPoint>		rawOffsetNurbsBodyPts;
 
 	QVector<NurbsBodyPoint> locationVec;
+	QVector<int> tmpVec;
 
 private:
 	bool isShowCtrlPoints; //是否显示控制点
@@ -78,7 +80,9 @@ private:
 	void CalSecondDerivativeAndCurvRad(QVector<NurbsBodyPoint>&);
 	//计算偏移曲线
 	void CalOffsetCurve(const QVector<NurbsBodyPoint>&, int);
-
+	//重新拼接 所有的曲线 片断
+	void ConstructCurvesSnippets(const QMap<int, QVector<QPointF>>&, const QVector<int>&, const QVector<NurbsBodyPoint>&,
+		QVector<NurbsBodyPoint>&);
 	//算法函数
 private: 
 	//寻找原始nurbs曲线上曲率半径小于给定offset值的点,(如果首位点相同,则记录两次,当作距离为0的线段)
@@ -87,5 +91,7 @@ private:
 	//计算凸包
 	double CalConvexHull(const QVector<NurbsBodyPoint>&, const int&);
 	//计算自交点
-	void CalSlefCrossPoint(const QVector<NurbsBodyPoint>&, QVector<int>&, QVector<int>&);
+	void CalSelfCrossPoint(const QVector<NurbsBodyPoint>&, QVector<int>&, QVector<int>&);
+	//构造光滑的连接曲线
+	void ConstructConnectCurve(const QVector<NurbsBodyPoint>&, QVector<int>&, QMap<int, QVector<QPointF>>&);
 };
